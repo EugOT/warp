@@ -181,6 +181,12 @@ pub enum SettingsViewEvent {
     OpenProjectRulesPane {
         rule_paths: Vec<PathBuf>,
     },
+    /// Open a CLI agent plugin install/update instructions pane in the active
+    /// terminal. Emitted from the third-party CLI agents settings page.
+    OpenPluginInstructionsPane {
+        agent: crate::terminal::CLIAgent,
+        kind: crate::terminal::cli_agent_sessions::plugin_manager::PluginModalKind,
+    },
 }
 
 /// Different navigation sections within the settings view
@@ -1794,6 +1800,12 @@ impl SettingsView {
             }
             AISettingsPageEvent::SignupAnonymousUser => {
                 ctx.emit(SettingsViewEvent::SignupAnonymousUser)
+            }
+            AISettingsPageEvent::OpenPluginInstructionsPane { agent, kind } => {
+                ctx.emit(SettingsViewEvent::OpenPluginInstructionsPane {
+                    agent: *agent,
+                    kind: *kind,
+                });
             }
         }
     }

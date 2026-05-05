@@ -91,3 +91,66 @@ fn team_force_takes_precedence_over_global_ai_disabled() {
         }
     );
 }
+
+// -- CliAgentPluginStatus tests --------------------------------------------
+
+use super::CliAgentPluginStatus;
+use crate::terminal::cli_agent_sessions::plugin_manager::PluginModalKind;
+use crate::terminal::CLIAgent;
+
+#[test]
+fn plugin_status_label_returns_user_facing_strings() {
+    assert_eq!(CliAgentPluginStatus::Installed.label(), "Installed");
+    assert_eq!(
+        CliAgentPluginStatus::UpdateAvailable.label(),
+        "Update available"
+    );
+    assert_eq!(CliAgentPluginStatus::NotInstalled.label(), "Not installed");
+}
+
+#[test]
+fn plugin_status_modal_kind_maps_to_install_or_update_only() {
+    assert_eq!(CliAgentPluginStatus::Installed.modal_kind(), None);
+    assert_eq!(
+        CliAgentPluginStatus::UpdateAvailable.modal_kind(),
+        Some(PluginModalKind::Update)
+    );
+    assert_eq!(
+        CliAgentPluginStatus::NotInstalled.modal_kind(),
+        Some(PluginModalKind::Install)
+    );
+}
+
+#[test]
+fn plugin_status_button_label_only_shown_when_action_exists() {
+    // Installed has nothing to do, so no button.
+    assert_eq!(CliAgentPluginStatus::Installed.button_label(), None);
+    assert_eq!(
+        CliAgentPluginStatus::UpdateAvailable.button_label(),
+        Some("Update")
+    );
+    assert_eq!(
+        CliAgentPluginStatus::NotInstalled.button_label(),
+        Some("Install")
+    );
+}
+
+#[test]
+fn plugin_status_modal_kind_and_button_label_have_consistent_action_set() {
+    // Whenever a button is shown, a modal kind must exist; and vice-versa.
+    for status in [
+        CliAgentPluginStatus::Installed,
+        CliAgentPluginStatus::UpdateAvailable,
+        CliAgentPluginStatus::NotInstalled,
+    ] {
+        assert_eq!(status.button_label().is_some(), status.modal_kind().is_some());
+    }
+}
+
+#[test]
+fn plugin_status_compute_returns_none_for_agents_without_plugin_support() {
+    // Agents in the catch-all None arm of `plugin_manager_for` must produce
+    // None from compute(), regardless of feature flag state.
+    assert!(CliAgentPluginStatus::compute(CLIAgent::Amp).is_none());
+    assert!(CliAgentPluginStatus::compute(CLIAgent::Unknown).is_none());
+}

@@ -33,7 +33,7 @@ use crate::settings::{
     SharedBlockTitleGenerationEnabled, ShouldRenderCLIAgentToolbar,
     ShouldRenderUseAgentToolbarForUserCommands, ShouldShowOzUpdatesInZeroState, ShowAgentTips,
     ShowConversationHistory, ShowHintText, ThinkingDisplayMode, VoiceInputEnabled,
-    WarpDriveContextEnabled,
+    WalcodePluginChipEnabled, WarpDriveContextEnabled, ZeroclawPluginChipEnabled,
 };
 use crate::terminal::session_settings::{SessionSettings, SessionSettingsChangedEvent};
 use crate::terminal::CLIAgent;
@@ -54,7 +54,8 @@ use warp_core::features::FeatureFlag;
 use warp_core::ui::theme::color::internal_colors;
 use warpui::elements::{
     Border, ChildView, ConstrainedBox, CornerRadius, CrossAxisAlignment, Dismiss, Expanded, Fill,
-    HyperlinkLens, MainAxisAlignment, MainAxisSize, MouseStateHandle, Radius, Shrinkable, Text,
+    Hoverable, HyperlinkLens, MainAxisAlignment, MainAxisSize, MouseStateHandle, Radius,
+    Shrinkable, Text,
 };
 use warpui::fonts::{Properties, Weight};
 use warpui::id;
@@ -2194,6 +2195,13 @@ pub enum AISettingsPageEvent {
     OpenMCPServerCollection,
     OpenExecutionProfileEditor(ClientProfileId),
     SignupAnonymousUser,
+    /// Request to open a CLI agent plugin install/update instructions pane in
+    /// the active terminal. Bubbled up to the workspace, which delegates to
+    /// the existing `open_plugin_instructions_pane` plumbing.
+    OpenPluginInstructionsPane {
+        agent: CLIAgent,
+        kind: crate::terminal::cli_agent_sessions::plugin_manager::PluginModalKind,
+    },
 }
 
 impl Entity for AISettingsPageView {
@@ -2274,6 +2282,19 @@ pub enum AISettingsPageAction {
     ToggleAutoToggleRichInput,
     ToggleAutoOpenRichInputOnCLIAgentStart,
     ToggleAutoDismissRichInputAfterSubmit,
+    /// Toggle the per-agent surface for the Walcode notification plugin row in
+    /// the third-party CLI agents settings page.
+    ToggleWalcodePluginChip,
+    /// Toggle the per-agent surface for the ZeroClaw notification plugin row in
+    /// the third-party CLI agents settings page.
+    ToggleZeroclawPluginChip,
+    /// Open the plugin install/update instructions pane for the given agent.
+    /// Emitted when the user clicks the Install or Update button in a
+    /// notification plugin row.
+    OpenPluginInstructionsForAgent {
+        agent: CLIAgent,
+        kind: crate::terminal::cli_agent_sessions::plugin_manager::PluginModalKind,
+    },
     SetCLIAgentForCommand {
         pattern: String,
         agent: Option<CLIAgent>,
@@ -2548,6 +2569,28 @@ impl TypedActionView for AISettingsPageView {
                         .toggle_and_save_value(ctx));
                 });
                 ctx.notify();
+            }
+            AISettingsPageAction::ToggleWalcodePluginChip => {
+                AISettings::handle(ctx).update(ctx, |settings, ctx| {
+                    report_if_error!(settings
+                        .walcode_plugin_chip_enabled
+                        .toggle_and_save_value(ctx));
+                });
+                ctx.notify();
+            }
+            AISettingsPageAction::ToggleZeroclawPluginChip => {
+                AISettings::handle(ctx).update(ctx, |settings, ctx| {
+                    report_if_error!(settings
+                        .zeroclaw_plugin_chip_enabled
+                        .toggle_and_save_value(ctx));
+                });
+                ctx.notify();
+            }
+            AISettingsPageAction::OpenPluginInstructionsForAgent { agent, kind } => {
+                ctx.emit(AISettingsPageEvent::OpenPluginInstructionsPane {
+                    agent: *agent,
+                    kind: *kind,
+                });
             }
             AISettingsPageAction::ToggleUseAgentToolbar => {
                 match AISettings::handle(ctx).update(ctx, |settings, ctx| {
@@ -3158,6 +3201,203 @@ fn render_ai_setting_description_with_font_size(
         })
         .build()
         .finish()
+}
+
+/// Status of the notification plugin for a given CLI agent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CliAgentPluginStatus {
+    /// Plugin is installed and up-to-date.
+    Installed,
+    /// Plugin is installed but a newer version is required.
+    UpdateAvailable,
+    /// Plugin is not installed.
+    NotInstalled,
+}
+
+impl CliAgentPluginStatus {
+    /// Compute the plugin status for a CLI agent based on installation and
+    /// update state. Returns `None` when the agent has no plugin manager
+    /// (e.g. feature flag disabled).
+    pub(crate) fn compute(agent: CLIAgent) -> Option<Self> {
+        let manager = crate::terminal::cli_agent_sessions::plugin_manager::plugin_manager_for(
+            agent,
+        )?;
+        if !manager.is_installed() {
+            return Some(Self::NotInstalled);
+        }
+        if manager.supports_update() && manager.needs_update() {
+            return Some(Self::UpdateAvailable);
+        }
+        Some(Self::Installed)
+    }
+
+    /// Short label rendered in the status pill.
+    pub(crate) fn label(&self) -> &'static str {
+        match self {
+            Self::Installed => "Installed",
+            Self::UpdateAvailable => "Update available",
+            Self::NotInstalled => "Not installed",
+        }
+    }
+
+    /// The kind of instructions pane to open when the user clicks the action
+    /// button. `None` for `Installed` because no action is needed.
+    pub(crate) fn modal_kind(
+        &self,
+    ) -> Option<crate::terminal::cli_agent_sessions::plugin_manager::PluginModalKind> {
+        use crate::terminal::cli_agent_sessions::plugin_manager::PluginModalKind;
+        match self {
+            Self::Installed => None,
+            Self::UpdateAvailable => Some(PluginModalKind::Update),
+            Self::NotInstalled => Some(PluginModalKind::Install),
+        }
+    }
+
+    /// Label for the action button next to the status pill.
+    pub(crate) fn button_label(&self) -> Option<&'static str> {
+        match self {
+            Self::Installed => None,
+            Self::UpdateAvailable => Some("Update"),
+            Self::NotInstalled => Some("Install"),
+        }
+    }
+}
+
+/// Render a single notification plugin row for the given CLI agent (Walcode
+/// or ZeroClaw). The row contains the brand-color icon dot, the agent display
+/// name, a status pill (Installed / Update available / Not installed), the
+/// per-agent toggle switch, and (when applicable) an Install/Update button
+/// that opens the plugin instructions pane.
+///
+/// Generic over `CLIAgent` so it can be reused for any agent that has a
+/// plugin manager. Returns `None` when the agent has no plugin manager
+/// available (e.g. feature flag disabled), which lets callers fall back to
+/// hiding the entire row.
+#[allow(clippy::too_many_arguments)]
+fn render_cli_agent_plugin_row(
+    agent: CLIAgent,
+    is_chip_enabled: bool,
+    chip_toggle: SwitchStateHandle,
+    button_state: MouseStateHandle,
+    toggle_action: AISettingsPageAction,
+    appearance: &Appearance,
+    app: &AppContext,
+) -> Option<Box<dyn Element>> {
+    let status = CliAgentPluginStatus::compute(agent)?;
+    let theme = appearance.theme();
+
+    // Brand color icon (or active UI text color fallback for agents without
+    // a brand color, e.g. when running on a fallback/placeholder agent).
+    let icon_color: Fill = agent
+        .brand_color()
+        .map(|c| c.into())
+        .unwrap_or_else(|| theme.active_ui_text_color());
+
+    let mut row = Flex::row()
+        .with_main_axis_size(MainAxisSize::Max)
+        .with_main_axis_alignment(MainAxisAlignment::SpaceBetween)
+        .with_cross_axis_alignment(CrossAxisAlignment::Center);
+
+    // Left side: brand icon + name + status pill.
+    let mut left = Flex::row().with_cross_axis_alignment(CrossAxisAlignment::Center);
+
+    if let Some(icon) = agent.icon() {
+        left.add_child(
+            Container::new(
+                ConstrainedBox::new(icon.to_warpui_icon(icon_color).finish())
+                    .with_width(16.)
+                    .with_height(16.)
+                    .finish(),
+            )
+            .with_margin_right(8.)
+            .finish(),
+        );
+    }
+
+    left.add_child(
+        Container::new(
+            Text::new_inline(
+                agent.display_name().to_string(),
+                appearance.ui_font_family(),
+                CONTENT_FONT_SIZE,
+            )
+            .with_color(theme.active_ui_text_color().into())
+            .finish(),
+        )
+        .with_margin_right(8.)
+        .finish(),
+    );
+
+    // Status pill color: green for installed, warning yellow for update
+    // available, disabled-text gray for not installed.
+    let pill_color: Fill = match status {
+        CliAgentPluginStatus::Installed => theme.ui_green_color().into(),
+        CliAgentPluginStatus::UpdateAvailable => theme.ui_warning_color().into(),
+        CliAgentPluginStatus::NotInstalled => theme.disabled_ui_text_color(),
+    };
+    left.add_child(
+        Container::new(
+            Text::new_inline(
+                status.label().to_string(),
+                appearance.ui_font_family(),
+                CONTENT_FONT_SIZE,
+            )
+            .with_color(pill_color)
+            .finish(),
+        )
+        .with_margin_right(8.)
+        .finish(),
+    );
+
+    row.add_child(Shrinkable::new(1., left.finish()).finish());
+
+    // Right side: per-agent toggle + (optional) Install/Update button.
+    let mut right = Flex::row().with_cross_axis_alignment(CrossAxisAlignment::Center);
+    right.add_child(
+        Container::new(render_ai_feature_switch(
+            chip_toggle,
+            is_chip_enabled,
+            true,
+            toggle_action,
+            app,
+        ))
+        .with_margin_right(8.)
+        .finish(),
+    );
+
+    if let (Some(label), Some(kind)) = (status.button_label(), status.modal_kind()) {
+        let button_bg = internal_colors::neutral_3(theme);
+        let active_text = theme.active_ui_text_color();
+        let label_owned = label.to_string();
+        let ui_font_family = appearance.ui_font_family();
+        let button = Hoverable::new(button_state, move |_| {
+            Container::new(
+                Text::new_inline(label_owned.clone(), ui_font_family, CONTENT_FONT_SIZE)
+                    .with_color(active_text)
+                    .finish(),
+            )
+            .with_horizontal_padding(8.)
+            .with_vertical_padding(4.)
+            .with_background(button_bg)
+            .with_corner_radius(CornerRadius::with_all(Radius::Pixels(4.)))
+        })
+        .finish()
+        .on_click(move |ctx, _, _| {
+            ctx.dispatch_typed_action(
+                AISettingsPageAction::OpenPluginInstructionsForAgent { agent, kind },
+            );
+        })
+        .finish();
+        right.add_child(button);
+    }
+
+    row.add_child(right.finish());
+
+    Some(
+        Container::new(row.finish())
+            .with_padding_bottom(HEADER_PADDING)
+            .finish(),
+    )
 }
 
 fn render_toolbar_layout_editor(
@@ -5784,6 +6024,10 @@ struct CLIAgentWidget {
     auto_toggle_rich_input_info_tooltip: MouseStateHandle,
     auto_open_rich_input_on_cli_agent_start_toggle: SwitchStateHandle,
     auto_dismiss_rich_input_toggle: SwitchStateHandle,
+    walcode_plugin_chip_toggle: SwitchStateHandle,
+    zeroclaw_plugin_chip_toggle: SwitchStateHandle,
+    walcode_plugin_button: MouseStateHandle,
+    zeroclaw_plugin_button: MouseStateHandle,
 }
 
 impl SettingsWidget for CLIAgentWidget {
@@ -6048,6 +6292,52 @@ impl SettingsWidget for CLIAgentWidget {
 
             column.add_child(command_list);
             column.add_child(command_list_description);
+
+            // Notification plugins subsection — surfaces opt-in rows for
+            // Walcode and ZeroClaw with status pill, toggle, and Install/Update
+            // action button. Each row is feature-flag-gated by its plugin
+            // manager (`plugin_manager_for(agent)` returns None when the
+            // corresponding feature flag is disabled, which causes
+            // `render_cli_agent_plugin_row` to return None).
+            let mut plugin_rows: Vec<Box<dyn Element>> = Vec::new();
+            if let Some(row) = render_cli_agent_plugin_row(
+                CLIAgent::Walcode,
+                *ai_settings.walcode_plugin_chip_enabled,
+                self.walcode_plugin_chip_toggle.clone(),
+                self.walcode_plugin_button.clone(),
+                AISettingsPageAction::ToggleWalcodePluginChip,
+                appearance,
+                app,
+            ) {
+                plugin_rows.push(row);
+            }
+            if let Some(row) = render_cli_agent_plugin_row(
+                CLIAgent::Zeroclaw,
+                *ai_settings.zeroclaw_plugin_chip_enabled,
+                self.zeroclaw_plugin_chip_toggle.clone(),
+                self.zeroclaw_plugin_button.clone(),
+                AISettingsPageAction::ToggleZeroclawPluginChip,
+                appearance,
+                app,
+            ) {
+                plugin_rows.push(row);
+            }
+
+            if !plugin_rows.is_empty() {
+                column.add_child(
+                    build_sub_header(
+                        appearance,
+                        "Notification plugins",
+                        Some(styles::header_font_color(true, app)),
+                    )
+                    .with_padding_top(HEADER_PADDING)
+                    .with_padding_bottom(HEADER_PADDING)
+                    .finish(),
+                );
+                for row in plugin_rows {
+                    column.add_child(row);
+                }
+            }
 
             if FeatureFlag::AgentToolbarEditor.is_enabled() {
                 column.add_child(render_toolbar_layout_editor(
