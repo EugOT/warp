@@ -5790,7 +5790,7 @@ impl SettingsWidget for CLIAgentWidget {
     type View = AISettingsPageView;
 
     fn search_terms(&self) -> &str {
-        "third party cli coding agent claude codex gemini toolbar footer layout chip chips rearrange re-arrange bar command regex auto show rich input dismiss"
+        "third party cli coding agent claude codex gemini opencode pi walcode claw zeroclaw acp auggie auto install plugin notifications toolbar footer layout chip chips rearrange re-arrange bar command regex auto show rich input dismiss"
     }
 
     fn render(
@@ -5803,7 +5803,7 @@ impl SettingsWidget for CLIAgentWidget {
 
         // The Coding Agents section is always enabled, independent of the
         // global AI toggle, because these settings control third-party coding
-        // agents (Claude Code, Codex, Gemini CLI) rather than Warp's own AI.
+        // agent integrations rather than Warp's own AI.
         let cli_agent_footer_toggle = render_ai_setting_toggle::<ShouldRenderCLIAgentToolbar>(
             "Show coding agent toolbar",
             AISettingsPageAction::ToggleCLIAgentToolbar,
@@ -5821,8 +5821,18 @@ impl SettingsWidget for CLIAgentWidget {
             FormattedTextFragment::inline_code("claude"),
             FormattedTextFragment::plain_text(", "),
             FormattedTextFragment::inline_code("codex"),
-            FormattedTextFragment::plain_text(", or "),
+            FormattedTextFragment::plain_text(", "),
             FormattedTextFragment::inline_code("gemini"),
+            FormattedTextFragment::plain_text(", "),
+            FormattedTextFragment::inline_code("opencode"),
+            FormattedTextFragment::plain_text(", "),
+            FormattedTextFragment::inline_code("auggie"),
+            FormattedTextFragment::plain_text(", "),
+            FormattedTextFragment::inline_code("pi"),
+            FormattedTextFragment::plain_text(", "),
+            FormattedTextFragment::inline_code("claw"),
+            FormattedTextFragment::plain_text(", or "),
+            FormattedTextFragment::inline_code("zeroclaw"),
             FormattedTextFragment::plain_text("."),
         ];
 
