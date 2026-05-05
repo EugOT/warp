@@ -12765,6 +12765,12 @@ impl Workspace {
                 #[cfg(not(feature = "local_fs"))]
                 let _ = rule_paths;
             }
+            #[cfg(not(target_family = "wasm"))]
+            SettingsViewEvent::OpenPluginInstructionsPane { agent, kind } => {
+                self.open_plugin_instructions_pane(*agent, *kind, ctx);
+            }
+            #[cfg(target_family = "wasm")]
+            SettingsViewEvent::OpenPluginInstructionsPane { agent: _, kind: _ } => {}
         }
     }
 

@@ -795,6 +795,14 @@ pub enum FeatureFlag {
     /// Requires HOANotifications to also be enabled.
     GeminiNotifications,
 
+    /// Enables the install/update chip for the Walcode (`claw`) Warp plugin.
+    /// Requires HOANotifications to also be enabled.
+    WalcodeNotifications,
+
+    /// Enables the install/update chip for the Zeroclaw Warp plugin.
+    /// Requires HOANotifications to also be enabled.
+    ZeroclawNotifications,
+
     /// When enabled, the "Skip for now" login flow does not create a Firebase
     /// anonymous user. The user remains fully logged out (no credentials) and
     /// login-gated features are disabled until they sign in.
@@ -926,6 +934,8 @@ pub const DOGFOOD_FLAGS: &[FeatureFlag] = &[
     FeatureFlag::OrchestrationV2,
     FeatureFlag::RunAgentsTool,
     FeatureFlag::GeminiNotifications,
+    FeatureFlag::WalcodeNotifications,
+    FeatureFlag::ZeroclawNotifications,
     FeatureFlag::LocalDockerSandbox,
     FeatureFlag::VerticalTabsSummaryMode,
     FeatureFlag::CloudModeSetupV2,

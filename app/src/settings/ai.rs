@@ -1264,6 +1264,34 @@ define_settings_group!(AISettings, settings: [
         description: "Whether CLI agent Rich Input automatically closes after the user submits a prompt.",
     }
 
+    // Whether to surface the Walcode notification plugin chip and per-agent toggle
+    // in the third-party CLI agents settings page. Gated separately from the
+    // `WalcodeNotifications` feature flag so the row is opt-in even when the
+    // flag is enabled.
+    walcode_plugin_chip_enabled: WalcodePluginChipEnabled {
+        type: bool,
+        default: false,
+        supported_platforms: SupportedPlatforms::ALL,
+        sync_to_cloud: SyncToCloud::Globally(RespectUserSyncSetting::Yes),
+        private: false,
+        toml_path: "agents.third_party.walcode_plugin_chip_enabled",
+        description: "Whether the Walcode plugin install/update chip and notification toggle are surfaced in the third-party CLI agents settings page.",
+    }
+
+    // Whether to surface the ZeroClaw notification plugin chip and per-agent toggle
+    // in the third-party CLI agents settings page. Gated separately from the
+    // `ZeroclawNotifications` feature flag so the row is opt-in even when the
+    // flag is enabled.
+    zeroclaw_plugin_chip_enabled: ZeroclawPluginChipEnabled {
+        type: bool,
+        default: false,
+        supported_platforms: SupportedPlatforms::ALL,
+        sync_to_cloud: SyncToCloud::Globally(RespectUserSyncSetting::Yes),
+        private: false,
+        toml_path: "agents.third_party.zeroclaw_plugin_chip_enabled",
+        description: "Whether the ZeroClaw plugin install/update chip and notification toggle are surfaced in the third-party CLI agents settings page.",
+    }
+
     // Maps custom toolbar command regex patterns to specific CLI agents.
     // Keys are regex patterns matched against the full command string.
     // Values are serialized CLIAgent names (empty string = any agent).

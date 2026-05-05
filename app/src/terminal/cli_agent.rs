@@ -120,7 +120,23 @@ const MISTRAL_ORANGE: ColorU = ColorU {
     a: 255,
 };
 
-/// Represents a CLI agent (e.g., Claude Code, Gemini CLI, Codex, Amp, Droid, OpenCode, Copilot, Pi, Auggie, Cursor, Goose, Mistral Vibe)
+/// Walcode brand color (#DC2626 deep crimson red, claw mark identity).
+const WALCODE_COLOR: ColorU = ColorU {
+    r: 220,
+    g: 38,
+    b: 38,
+    a: 255,
+};
+
+/// Zeroclaw brand color (#06B6D4 electric cyan, neon ring identity).
+const ZEROCLAW_COLOR: ColorU = ColorU {
+    r: 6,
+    g: 182,
+    b: 212,
+    a: 255,
+};
+
+/// Represents a CLI agent (e.g., Claude Code, Gemini CLI, Codex, Amp, Droid, OpenCode, Copilot, Pi, Auggie, Cursor, Goose, Mistral Vibe, Walcode, ZeroClaw)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Sequence, Serialize, Deserialize)]
 pub enum CLIAgent {
     Claude,
@@ -135,6 +151,10 @@ pub enum CLIAgent {
     CursorCli,
     Goose,
     Vibe,
+    /// Walcode (`claw` binary) — Rust+Python claude-code parity fork.
+    Walcode,
+    /// Zeroclaw — Rust personal AI assistant with ACP transport.
+    Zeroclaw,
     /// Represents an unknown/custom CLI agent matched by user-configured regex patterns.
     Unknown,
 }
@@ -155,6 +175,8 @@ impl CLIAgent {
             CLIAgent::CursorCli => "agent",
             CLIAgent::Goose => "goose",
             CLIAgent::Vibe => "vibe",
+            CLIAgent::Walcode => "claw",
+            CLIAgent::Zeroclaw => "zeroclaw",
             CLIAgent::Unknown => "",
         }
     }
@@ -201,6 +223,8 @@ impl CLIAgent {
             CLIAgent::CursorCli => "Cursor",
             CLIAgent::Goose => "Goose",
             CLIAgent::Vibe => "Mistral Vibe",
+            CLIAgent::Walcode => "Walcode",
+            CLIAgent::Zeroclaw => "ZeroClaw",
             CLIAgent::Unknown => "CLI Agent",
         }
     }
@@ -223,6 +247,8 @@ impl CLIAgent {
             // still drives the toolbar tile; an `Icon::MistralLogo` can be wired
             // up in a follow-up once an officially licensed SVG is available.
             CLIAgent::Vibe => None,
+            CLIAgent::Walcode => Some(Icon::WalcodeLogo),
+            CLIAgent::Zeroclaw => Some(Icon::ZeroclawLogo),
             CLIAgent::Unknown => None,
         }
     }
@@ -252,6 +278,8 @@ impl CLIAgent {
             CLIAgent::CursorCli => &[SkillProvider::Agents],
             CLIAgent::Goose => &[SkillProvider::Agents],
             CLIAgent::Vibe => &[SkillProvider::Agents],
+            CLIAgent::Walcode => &[SkillProvider::Agents, SkillProvider::Claude],
+            CLIAgent::Zeroclaw => &[SkillProvider::Agents],
             CLIAgent::Unknown => &[],
         }
     }
@@ -293,6 +321,8 @@ impl CLIAgent {
             CLIAgent::CursorCli => Some(CURSOR_COLOR),
             CLIAgent::Goose => Some(GOOSE_COLOR),
             CLIAgent::Vibe => Some(MISTRAL_ORANGE),
+            CLIAgent::Walcode => Some(WALCODE_COLOR),
+            CLIAgent::Zeroclaw => Some(ZEROCLAW_COLOR),
             CLIAgent::Unknown => None,
         }
     }
@@ -557,6 +587,8 @@ impl From<CLIAgent> for CLIAgentType {
             CLIAgent::CursorCli => CLIAgentType::Cursor,
             CLIAgent::Goose => CLIAgentType::Goose,
             CLIAgent::Vibe => CLIAgentType::Vibe,
+            CLIAgent::Walcode => CLIAgentType::Walcode,
+            CLIAgent::Zeroclaw => CLIAgentType::Zeroclaw,
             CLIAgent::Unknown => CLIAgentType::Unknown,
         }
     }

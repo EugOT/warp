@@ -2,6 +2,8 @@ pub(crate) mod claude;
 pub(crate) mod codex;
 pub(crate) mod gemini;
 pub(crate) mod opencode;
+pub(crate) mod walcode;
+pub(crate) mod zeroclaw;
 
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -19,6 +21,8 @@ use claude::ClaudeCodePluginManager;
 use codex::CodexPluginManager;
 use gemini::GeminiPluginManager;
 use opencode::OpenCodePluginManager;
+use walcode::WalcodePluginManager;
+use zeroclaw::ZeroclawPluginManager;
 
 /// Distinguishes whether the plugin instructions modal should show install or update steps.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -254,6 +258,26 @@ pub(crate) fn plugin_manager_for_with_shell(
                 path_env_var,
             )))
         }
+        CLIAgent::Walcode
+            if FeatureFlag::WalcodeNotifications.is_enabled()
+                && FeatureFlag::HOANotifications.is_enabled() =>
+        {
+            Some(Box::new(WalcodePluginManager::new(
+                shell_path,
+                shell_type,
+                path_env_var,
+            )))
+        }
+        CLIAgent::Zeroclaw
+            if FeatureFlag::ZeroclawNotifications.is_enabled()
+                && FeatureFlag::HOANotifications.is_enabled() =>
+        {
+            Some(Box::new(ZeroclawPluginManager::new(
+                shell_path,
+                shell_type,
+                path_env_var,
+            )))
+        }
         CLIAgent::OpenCode
         | CLIAgent::Codex
         | CLIAgent::Gemini
@@ -265,6 +289,8 @@ pub(crate) fn plugin_manager_for_with_shell(
         | CLIAgent::CursorCli
         | CLIAgent::Goose
         | CLIAgent::Vibe
+        | CLIAgent::Walcode
+        | CLIAgent::Zeroclaw
         | CLIAgent::Unknown => None,
     }
 }

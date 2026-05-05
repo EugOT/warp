@@ -30,10 +30,63 @@ fn returns_manager_for_gemini() {
 }
 
 #[test]
+fn returns_manager_for_walcode() {
+    let _walcode_guard =
+        crate::features::FeatureFlag::WalcodeNotifications.override_enabled(true);
+    let _hoa_guard = crate::features::FeatureFlag::HOANotifications.override_enabled(true);
+    assert!(plugin_manager_for(CLIAgent::Walcode).is_some());
+}
+
+#[test]
+fn returns_manager_for_zeroclaw() {
+    let _zeroclaw_guard =
+        crate::features::FeatureFlag::ZeroclawNotifications.override_enabled(true);
+    let _hoa_guard = crate::features::FeatureFlag::HOANotifications.override_enabled(true);
+    assert!(plugin_manager_for(CLIAgent::Zeroclaw).is_some());
+}
+
+#[test]
+fn walcode_returns_none_when_hoa_disabled() {
+    let _walcode_guard =
+        crate::features::FeatureFlag::WalcodeNotifications.override_enabled(true);
+    let _hoa_guard = crate::features::FeatureFlag::HOANotifications.override_enabled(false);
+    assert!(plugin_manager_for(CLIAgent::Walcode).is_none());
+}
+
+#[test]
+fn walcode_returns_none_when_agent_flag_disabled() {
+    let _walcode_guard =
+        crate::features::FeatureFlag::WalcodeNotifications.override_enabled(false);
+    let _hoa_guard = crate::features::FeatureFlag::HOANotifications.override_enabled(true);
+    assert!(plugin_manager_for(CLIAgent::Walcode).is_none());
+}
+
+#[test]
+fn zeroclaw_returns_none_when_hoa_disabled() {
+    let _zeroclaw_guard =
+        crate::features::FeatureFlag::ZeroclawNotifications.override_enabled(true);
+    let _hoa_guard = crate::features::FeatureFlag::HOANotifications.override_enabled(false);
+    assert!(plugin_manager_for(CLIAgent::Zeroclaw).is_none());
+}
+
+#[test]
+fn zeroclaw_returns_none_when_agent_flag_disabled() {
+    let _zeroclaw_guard =
+        crate::features::FeatureFlag::ZeroclawNotifications.override_enabled(false);
+    let _hoa_guard = crate::features::FeatureFlag::HOANotifications.override_enabled(true);
+    assert!(plugin_manager_for(CLIAgent::Zeroclaw).is_none());
+}
+
+#[test]
 fn returns_none_for_unsupported_agents() {
     assert!(plugin_manager_for(CLIAgent::Amp).is_none());
     assert!(plugin_manager_for(CLIAgent::Droid).is_none());
     assert!(plugin_manager_for(CLIAgent::Copilot).is_none());
+    assert!(plugin_manager_for(CLIAgent::Auggie).is_none());
+    assert!(plugin_manager_for(CLIAgent::CursorCli).is_none());
+    assert!(plugin_manager_for(CLIAgent::Pi).is_none());
+    assert!(plugin_manager_for(CLIAgent::Goose).is_none());
+    assert!(plugin_manager_for(CLIAgent::Vibe).is_none());
     assert!(plugin_manager_for(CLIAgent::Unknown).is_none());
 }
 

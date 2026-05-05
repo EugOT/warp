@@ -501,6 +501,8 @@ pub enum CLIAgentType {
     Cursor,
     Goose,
     Vibe,
+    Walcode,
+    Zeroclaw,
     Unknown,
 }
 
